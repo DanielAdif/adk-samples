@@ -21,6 +21,8 @@ from dotenv import load_dotenv, set_key
 from google.api_core.exceptions import ResourceExhausted
 from google.auth import default
 from vertexai.preview import rag
+from google.api_core import retry
+from google.api_core.client_options import ClientOptions
 
 # --- Please fill in your configurations ---
 # Load environment variables from .env file
@@ -45,8 +47,8 @@ if not LOCATION:
     raise ValueError(
         "GOOGLE_CLOUD_LOCATION environment variable not set. Please set it in your .env file."
     )
-CORPUS_DISPLAY_NAME = "Alphabet_10K_2025_corpus"
-CORPUS_DESCRIPTION = "Corpus containing Alphabet's 10-K 2025 document"
+CORPUS_DISPLAY_NAME = "QSOP3510"
+CORPUS_DESCRIPTION = "Corpus containing QSOP 3510 related documents for RAG agent demo"
 PDF_URL = "https://s206.q4cdn.com/479360582/files/doc_financials/2025/q4/GOOG-10-K-2025.pdf"
 PDF_FILENAME = "goog-10-k-2025.pdf"
 
@@ -105,7 +107,7 @@ def upload_pdf_to_corpus(corpus_name, pdf_path, display_name, description):
             corpus_name=corpus_name,
             path=pdf_path,
             display_name=display_name,
-            description=description,
+            description=description# Set a longer timeout for large files
         )
         print(f"Successfully uploaded {display_name} to corpus")
         return rag_file
@@ -140,31 +142,54 @@ def list_corpus_files(corpus_name):
     for file in files:
         print(f"File: {file.display_name} - {file.name}")
 
-
 def main():
-    initialize_vertex_ai()
-    corpus = create_or_get_corpus()
+  initialize_vertex_ai()
+  corpus = create_or_get_corpus() # Uses CORPUS_DISPLAY_NAME & CORPUS_DESCRIPTION
 
-    # Update the .env file with the corpus name
-    update_env_file(corpus.name, ENV_FILE_PATH)
+  # Upload your local PDF to the corpus
+  local_file_path = "C:\\Users\\ADIFNUGD\\Downloads\\Labeling QSOP_PDF 2026-03-13_QSOP 3510 Labeling - Package Copy.pdf" # Set the correct path
+  display_name = "QSOP3510.pdf" # Set the desired display name
+  description = "QSOP3510" # Set the description
 
-    # Create a temporary directory to store the downloaded PDF
-    with tempfile.TemporaryDirectory() as temp_dir:
-        pdf_path = os.path.join(temp_dir, PDF_FILENAME)
+  # Ensure the file exists before uploading
+  if os.path.exists(local_file_path):
+      upload_pdf_to_corpus(
+          corpus_name=corpus.name,
+          pdf_path=local_file_path,
+          display_name=display_name,
+          description=description,
+            # Set a longer timeout for large files
+      )
+  else:
+      print(f"Error: Local file not found at {local_file_path}")
 
-        # Download the PDF from the URL
-        download_pdf_from_url(PDF_URL, pdf_path)
+  # List all files in the corpus
+  list_corpus_files(corpus_name=corpus.name)
 
-        # Upload the PDF to the corpus
-        upload_pdf_to_corpus(
-            corpus_name=corpus.name,
-            pdf_path=pdf_path,
-            display_name=PDF_FILENAME,
-            description="Alphabet's 10-K 2025 document",
-        )
+# def main():
+#     initialize_vertex_ai()
+#     corpus = create_or_get_corpus()
 
-    # List all files in the corpus
-    list_corpus_files(corpus_name=corpus.name)
+#     # Update the .env file with the corpus name
+#     update_env_file(corpus.name, ENV_FILE_PATH)
+
+#     # Create a temporary directory to store the downloaded PDF
+#     with tempfile.TemporaryDirectory() as temp_dir:
+#         pdf_path = os.path.join(temp_dir, PDF_FILENAME)
+
+#         # Download the PDF from the URL
+#         download_pdf_from_url(PDF_URL, pdf_path)
+
+#         # Upload the PDF to the corpus
+#         upload_pdf_to_corpus(
+#             corpus_name=corpus.name,
+#             pdf_path=pdf_path,
+#             display_name=PDF_FILENAME,
+#             description="Alphabet's 10-K 2025 document",
+#         )
+
+#     # List all files in the corpus
+#     list_corpus_files(corpus_name=corpus.name)
 
 
 if __name__ == "__main__":
